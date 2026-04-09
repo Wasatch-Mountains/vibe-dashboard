@@ -333,6 +333,53 @@
             color: #cbd5e1;
             border: 1px solid rgba(100, 116, 139, 0.35);
         }
+
+        .nps-trend-intro {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1.1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(30, 41, 59, 0.9);
+        }
+
+        .nps-trend-figure {
+            flex-shrink: 0;
+            width: 88px;
+            height: 72px;
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(51, 65, 85, 0.85);
+            padding: 8px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+
+        .nps-trend-figure svg {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .nps-trend-blurb {
+            margin: 0;
+            font-size: 0.82rem;
+            line-height: 1.55;
+            color: #cbd5e1;
+            opacity: 0.92;
+        }
+
+        .nps-trend-blurb strong {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        @media (max-width: 480px) {
+            .nps-trend-intro {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -374,17 +421,37 @@
         </header>
 
         <div class="stats-grid">
+            <div class="card nps-trend-card">
+                <h3>Vibe Trend (NPS)</h3>
+                <div class="nps-trend-intro">
+                    <figure class="nps-trend-figure" aria-hidden="true">
+                        <svg viewBox="0 0 72 56" xmlns="http://www.w3.org/2000/svg" role="img">
+                            <defs>
+                                <linearGradient id="npsMiniFill" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="#22d3ee" stop-opacity="0.35"/>
+                                    <stop offset="100%" stop-color="#22d3ee" stop-opacity="0.02"/>
+                                </linearGradient>
+                            </defs>
+                            <rect x="4" y="4" width="64" height="48" rx="4" fill="rgba(2,6,23,0.5)" stroke="rgba(51,65,85,0.6)" stroke-width="1"/>
+                            <polyline fill="none" stroke="rgba(100,116,139,0.5)" stroke-width="0.5" stroke-dasharray="2 3" points="10,42 62,42"/>
+                            <path fill="url(#npsMiniFill)" d="M 10 38 L 18 32 L 28 36 L 40 22 L 52 26 L 62 14 L 62 44 L 10 44 Z"/>
+                            <path fill="none" stroke="#22d3ee" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M 10 38 L 18 32 L 28 36 L 40 22 L 52 26 L 62 14"/>
+                        </svg>
+                    </figure>
+                    <p class="nps-trend-blurb">
+                        Each point is one submission, in <strong>time order</strong> (oldest on the left, newest on the right).
+                        The height is the <strong>NPS score (0–10)</strong>. A rising line means recent vibes are stronger; dips are stretches where scores softened.
+                    </p>
+                </div>
+                <div id="nps-chart">
+                    <p style="text-align: center; padding-top: 50px; opacity: 0.5;">Calculating vibes...</p>
+                </div>
+            </div>
+
             <div class="card">
                 <h3>Total Vibes Received</h3>
                 <div id="vibe-count" class="metric-value">...</div>
                 <p style="opacity: 0.6; font-size: 0.8rem;">Cumulative project responses</p>
-            </div>
-
-            <div class="card">
-                <h3>Vibe Trend (NPS)</h3>
-                <div id="nps-chart">
-                    <p style="text-align: center; padding-top: 50px; opacity: 0.5;">Calculating vibes...</p>
-                </div>
             </div>
         </div>
 
