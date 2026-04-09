@@ -44,4 +44,10 @@ window.VIBE_SURVEY_CONFIG = {
 
   /** Replace with your Qualtrics data center id (e.g. ca1, eu, b1). */
   DATA_CENTER: 'fra1',
+
+  /**
+   * Export key for the “pick a color” (or mood color) question in each response’s `values`.
+   * Change if your survey uses another QID (e.g. QID4).
+   */
+  COLOR_QID: 'QID2',
 };

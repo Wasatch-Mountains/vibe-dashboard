@@ -1,5 +1,120 @@
 const CONFIG = window.VIBE_SURVEY_CONFIG;
 
+const CHOICE_COLOR_PALETTE = [
+    '#f43f5e', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#0ea5e9', '#6366f1', '#a855f7', '#ec4899', '#64748b',
+];
+
+const COLOR_NAME_HEX = {
+    red: '#ef4444',
+    crimson: '#dc2626',
+    maroon: '#b91c1c',
+    orange: '#f97316',
+    amber: '#f59e0b',
+    yellow: '#eab308',
+    gold: '#ca8a04',
+    lime: '#84cc16',
+    green: '#22c55e',
+    emerald: '#10b981',
+    teal: '#14b8a6',
+    cyan: '#06b6d4',
+    sky: '#0ea5e9',
+    blue: '#3b82f6',
+    indigo: '#6366f1',
+    violet: '#8b5cf6',
+    purple: '#a855f7',
+    fuchsia: '#d946ef',
+    pink: '#ec4899',
+    rose: '#f43f5e',
+    brown: '#92400e',
+    black: '#1e293b',
+    white: '#f1f5f9',
+    gray: '#64748b',
+    grey: '#64748b',
+};
+
+function hexToRgba(color, alpha) {
+    if (!color || typeof color !== 'string') return 'transparent';
+    const c = color.trim();
+    if (c.startsWith('rgba')) return c;
+    if (c.startsWith('rgb(')) return c.replace('rgb(', 'rgba(').replace(')', `, ${alpha})`);
+    let h = c.replace('#', '');
+    if (h.length === 3) h = h.split('').map((ch) => ch + ch).join('');
+    if (h.length !== 6 || /[^0-9a-f]/i.test(h)) return 'transparent';
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function normalizeSurveyColor(raw) {
+    if (raw == null || raw === '') return null;
+    const s = String(raw).trim();
+    if (/^https?:\/\//i.test(s) || s.length > 120) return null;
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(s)) {
+        if (s.length === 4) return `#${s[1]}${s[1]}${s[2]}${s[2]}${s[3]}${s[3]}`;
+        return s.toLowerCase();
+    }
+    if (/^rgba?\(/i.test(s)) return s;
+    const lower = s.toLowerCase();
+    for (const [word, hex] of Object.entries(COLOR_NAME_HEX)) {
+        const re = new RegExp(`\\b${word}\\b`, 'i');
+        if (re.test(lower)) return hex;
+    }
+    const n = parseInt(s, 10);
+    if (!Number.isNaN(n) && /^\d+$/.test(s.trim())) {
+        return CHOICE_COLOR_PALETTE[Math.abs(n) % CHOICE_COLOR_PALETTE.length];
+    }
+    return null;
+}
+
+function parseVibeAccent(values) {
+    const base = CONFIG.COLOR_QID || 'QID2';
+    const keys = [base, `${base}_TEXT`, `${base}_DO`];
+    for (const k of keys) {
+        const c = normalizeSurveyColor(values[k]);
+        if (c) return c;
+    }
+    return null;
+}
+
+function npsGroupLabel(score) {
+    const n = parseInt(score, 10);
+    if (Number.isNaN(n)) return '—';
+    if (n >= 9) return 'Promoter';
+    if (n >= 7) return 'Passive';
+    return 'Detractor';
+}
+
+function npsPillClass(group) {
+    if (group === 'Promoter') return 'nps-pill prom';
+    if (group === 'Passive') return 'nps-pill pas';
+    if (group === 'Detractor') return 'nps-pill det';
+    return 'nps-pill na';
+}
+
+function emojiFromComment(text) {
+    const t = (text || '').toLowerCase();
+    if (!t.trim()) return '💭';
+    if (/\b(love|loved|awesome|amazing|excellent|perfect|fantastic|brilliant)\b/.test(t)) return '🔥';
+    if (/\b(thanks|thank you|thx|appreciate|grateful)\b/.test(t)) return '🙏';
+    if (/\b(hate|terrible|awful|worst|horrible|useless|angry|furious)\b/.test(t)) return '😤';
+    if (/\b(bug|bugs|broken|crash|error|doesn'?t work|not working)\b/.test(t)) return '🐛';
+    if (/\b(slow|lag|latency|timeout)\b/.test(t)) return '🐢';
+    if (/\b(beautiful|clean|sleek|smooth|polish)\b/.test(t)) return '✨';
+    if (/\?|\b(why|how|what)\b/.test(t)) return '🤔';
+    if (/\b(please|hope|wish|would love)\b/.test(t)) return '🌱';
+    if (/\b(team|y'?all|you guys|everyone)\b/.test(t)) return '👋';
+    if (/\b(wow|omg|incredible)\b/.test(t)) return '😮';
+    if (/\b(sad|disappoint|unfortunate|unfortunately)\b/.test(t)) return '💙';
+    return '💬';
+}
+
+function responseTimestampMs(values) {
+    const d = values.recordedDate || values.EndDateStart || values.startDate;
+    const t = d != null ? new Date(d).getTime() : 0;
+    return Number.isNaN(t) ? 0 : t;
+}
+
 const LAMPS = { proxy: 'lamp-proxy', feed: 'lamp-feed', display: 'lamp-display' };
 
 const ARIA = {
@@ -137,8 +252,12 @@ async function fetchVibes() {
 function renderDashboard(data) {
     document.getElementById('vibe-count').innerText = data.length;
 
-    const npsValues = data.map(v => parseInt(v.values.QID1 || 0));
-    const labels = data.map((_, i) => `Vibe #${i + 1}`);
+    const chronological = [...data].sort(
+        (a, b) => responseTimestampMs(a.values) - responseTimestampMs(b.values)
+    );
+
+    const npsValues = chronological.map((v) => parseInt(v.values.QID1 || 0, 10));
+    const labels = chronological.map((_, i) => `Vibe #${i + 1}`);
 
     const options = {
         chart: { type: 'area', height: 300, sparkline: { enabled: false }, toolbar: { show: false } },
@@ -153,22 +272,114 @@ function renderDashboard(data) {
     document.querySelector('#nps-chart').innerHTML = '';
     new ApexCharts(document.querySelector('#nps-chart'), options).render();
 
-    const tableData = data.map(v => ({
-        nps: v.values.QID1,
-        comment: v.values.QID3_TEXT,
-        host: v.values.OriginHost || 'Local',
-        date: new Date(v.values.recordedDate).toLocaleDateString(),
-    }));
+    const newestFirst = [...data].sort(
+        (a, b) => responseTimestampMs(b.values) - responseTimestampMs(a.values)
+    );
 
-    new Tabulator('#vibe-table', {
+    const tableData = newestFirst.map((v) => {
+        const vals = v.values || {};
+        const comment = vals.QID3_TEXT != null ? String(vals.QID3_TEXT) : '';
+        const group = npsGroupLabel(vals.QID1);
+        const accent = parseVibeAccent(vals);
+        const ts = responseTimestampMs(vals);
+        const when = vals.recordedDate ? new Date(vals.recordedDate) : null;
+        const whenStr = when && !Number.isNaN(when.getTime()) ? when.toLocaleString() : '—';
+
+        return {
+            _ts: ts,
+            emoji: emojiFromComment(comment),
+            nps: vals.QID1,
+            npsGroup: group,
+            comment,
+            whenStr,
+            vibeAccent: accent,
+        };
+    });
+
+    if (window.__vibeTable && typeof window.__vibeTable.destroy === 'function') {
+        window.__vibeTable.destroy();
+    }
+
+    window.__vibeTable = new Tabulator('#vibe-table', {
         data: tableData,
         layout: 'fitColumns',
         pagination: 'local',
-        paginationSize: 5,
+        paginationSize: 8,
+        paginationSizeSelector: [5, 8, 15, 25],
+        movableColumns: false,
+        selectable: false,
+        initialSort: [{ column: '_ts', dir: 'desc' }],
+        rowFormatter(row) {
+            const el = row.getElement();
+            const accent = row.getData().vibeAccent;
+            if (accent) {
+                el.style.borderLeftWidth = '4px';
+                el.style.borderLeftStyle = 'solid';
+                el.style.borderLeftColor = accent;
+                el.style.boxShadow = `inset 16px 0 32px -12px ${hexToRgba(accent, 0.2)}`;
+            } else {
+                el.style.borderLeft = '';
+                el.style.boxShadow = '';
+            }
+        },
+        rowClick(_e, row) {
+            row.getElement().classList.toggle('vibe-row-expanded');
+        },
         columns: [
-            { title: 'NPS', field: 'nps', width: 80, hozAlign: 'center', color: '#22d3ee' },
-            { title: 'Vibe Comment', field: 'comment', widthGrow: 3 },
-            { title: 'Origin', field: 'host', width: 120 },
+            {
+                title: '',
+                field: 'emoji',
+                width: 52,
+                hozAlign: 'center',
+                headerSort: false,
+                cssClass: 'vibe-emoji-cell',
+            },
+            {
+                title: 'NPS',
+                field: 'nps',
+                width: 64,
+                hozAlign: 'center',
+                sorter: 'number',
+                formatter(cell) {
+                    const span = document.createElement('span');
+                    span.className = 'vibe-nps-num';
+                    span.style.color = '#22d3ee';
+                    span.textContent = cell.getValue() != null && cell.getValue() !== '' ? String(cell.getValue()) : '—';
+                    return span;
+                },
+            },
+            {
+                title: 'NPS group',
+                field: 'npsGroup',
+                width: 130,
+                formatter(cell) {
+                    const span = document.createElement('span');
+                    span.className = npsPillClass(cell.getValue());
+                    span.textContent = cell.getValue();
+                    return span;
+                },
+            },
+            {
+                title: 'Comment',
+                field: 'comment',
+                minWidth: 200,
+                widthGrow: 3,
+                cssClass: 'col-comment',
+                formatter(cell) {
+                    const div = document.createElement('div');
+                    div.textContent = cell.getValue() || '';
+                    return div;
+                },
+            },
+            {
+                title: 'When',
+                field: 'whenStr',
+                width: 150,
+                sorter(a, b, aRow, bRow) {
+                    return (aRow.getData()._ts || 0) - (bRow.getData()._ts || 0);
+                },
+            },
+            { title: '', field: '_ts', visible: false, sorter: 'number' },
         ],
     });
 }

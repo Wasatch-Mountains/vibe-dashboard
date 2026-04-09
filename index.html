@@ -231,6 +231,108 @@
             background: transparent;
             border: none;
         }
+
+        .vibe-table-host .tabulator {
+            font-size: 0.875rem;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(51, 65, 85, 0.9);
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        .vibe-table-host .tabulator-header {
+            background: linear-gradient(180deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+            border-bottom: 1px solid var(--border);
+            font-family: 'Share Tech Mono', ui-monospace, monospace;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+
+        .vibe-table-host .tabulator-header .tabulator-col {
+            background: transparent;
+        }
+
+        .vibe-table-host .tabulator-row {
+            background: rgba(15, 23, 42, 0.35);
+            border-bottom: 1px solid rgba(30, 41, 59, 0.85);
+            cursor: pointer;
+            transition: background 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .vibe-table-host .tabulator-row:hover {
+            background: rgba(30, 41, 59, 0.55);
+        }
+
+        .vibe-table-host .tabulator-row.tabulator-selected {
+            background: rgba(34, 211, 238, 0.06);
+        }
+
+        .vibe-table-host .tabulator-row.vibe-row-expanded {
+            background: rgba(30, 41, 59, 0.65);
+        }
+
+        .vibe-table-host .col-comment .tabulator-cell {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 0;
+        }
+
+        .vibe-table-host .tabulator-row.vibe-row-expanded .col-comment .tabulator-cell {
+            white-space: pre-wrap;
+            overflow: visible;
+            text-overflow: unset;
+            max-width: none;
+        }
+
+        .vibe-emoji-cell {
+            font-size: 1.35rem;
+            line-height: 1;
+            text-align: center;
+        }
+
+        .vibe-nps-num {
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            font-family: 'Share Tech Mono', ui-monospace, monospace;
+        }
+
+        .nps-pill {
+            display: inline-block;
+            padding: 0.2rem 0.55rem;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-family: 'Share Tech Mono', ui-monospace, monospace;
+        }
+
+        .nps-pill.prom {
+            background: rgba(34, 197, 94, 0.2);
+            color: #86efac;
+            border: 1px solid rgba(34, 197, 94, 0.45);
+        }
+
+        .nps-pill.pas {
+            background: rgba(234, 179, 8, 0.15);
+            color: #fde047;
+            border: 1px solid rgba(234, 179, 8, 0.4);
+        }
+
+        .nps-pill.det {
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .nps-pill.na {
+            background: rgba(100, 116, 139, 0.2);
+            color: #cbd5e1;
+            border: 1px solid rgba(100, 116, 139, 0.35);
+        }
     </style>
 </head>
 <body>
@@ -286,10 +388,10 @@
             </div>
         </div>
 
-        <div class="card">
-            <h3>Raw Chaos Feed (Drill-Down)</h3>
-            <div id="vibe-table">
-                </div>
+        <div class="card vibe-feed-card">
+            <h3>Latest vibes</h3>
+            <p style="opacity: 0.55; font-size: 0.8rem; margin: -0.25rem 0 1rem;">Newest first · row tint = survey color · click a row to expand the comment</p>
+            <div id="vibe-table" class="vibe-table-host"></div>
         </div>
     </div>
 
