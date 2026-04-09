@@ -1,79 +1,113 @@
 const CONFIG = window.VIBE_SURVEY_CONFIG;
 
-function setSignalStatus(status, message) {
+/** @param {{ proxy?: 'pending'|'up'|'down', phase?: 'idle'|'loading'|'success'|'fault', message?: string }} patch */
+function setSignal(patch) {
     const panel = document.getElementById('system-signal');
     const line = document.getElementById('signal-message');
-    if (panel) panel.setAttribute('data-status', status);
-    if (line) line.textContent = message;
+    if (panel) {
+        if (patch.proxy !== undefined) panel.setAttribute('data-proxy', patch.proxy);
+        if (patch.phase !== undefined) panel.setAttribute('data-phase', patch.phase);
+    }
+    if (line && patch.message !== undefined) line.textContent = patch.message;
+}
+
+function isNetworkUnreachable(err) {
+    if (!err || typeof err !== 'object') return false;
+    if (err.name === 'TypeError' && /fetch|Load failed|NetworkError|Failed to fetch/i.test(String(err.message))) return true;
+    return false;
 }
 
 async function fetchVibes() {
     const url = `${CONFIG.PROXY_URL.replace('/submit-survey', '/responses')}?surveyId=${CONFIG.SURVEY_ID}&datacenter=${CONFIG.DATA_CENTER}`;
 
-    setSignalStatus('waiting', 'Polling proxy — awaiting payload…');
+    setSignal({
+        proxy: 'pending',
+        phase: 'idle',
+        message: 'Contacting proxy — checking reachability…',
+    });
 
+    let response;
     try {
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            const hint = response.statusText || `HTTP ${response.status}`;
-            setSignalStatus('error', `Feed error: ${hint}. Check proxy and survey id.`);
-            document.getElementById('vibe-count').innerText = '—';
-            return;
-        }
-
-        let vibes;
-        try {
-            vibes = await response.json();
-        } catch {
-            setSignalStatus('error', 'Invalid response: server did not return JSON.');
-            document.getElementById('vibe-count').innerText = '—';
-            return;
-        }
-
-        if (!Array.isArray(vibes)) {
-            setSignalStatus('error', 'Unexpected shape: expected a list of responses.');
-            document.getElementById('vibe-count').innerText = '—';
-            return;
-        }
-
-        try {
-            renderDashboard(vibes);
-        } catch (err) {
-            console.error('Render failed:', err);
-            setSignalStatus('error', `Display error: ${err.message || 'chart or table failed to build.'}`);
-            document.getElementById('vibe-count').innerText = '—';
-            return;
-        }
-
-        const n = vibes.length;
-        setSignalStatus(
-            'success',
-            n === 0
-                ? 'Link OK — zero responses so far.'
-                : `Link OK — loaded ${n} response${n === 1 ? '' : 's'}.`
-        );
+        response = await fetch(url);
     } catch (err) {
         console.error('Vibe Fetch Failed:', err);
-        setSignalStatus(
-            'error',
-            err.name === 'TypeError' && String(err.message).includes('fetch')
-                ? 'Network error — unreachable proxy or blocked request.'
-                : `Fetch failed: ${err.message || err}`
-        );
+        setSignal({
+            proxy: 'down',
+            phase: 'fault',
+            message: isNetworkUnreachable(err)
+                ? 'Proxy unreachable — no response (network, DNS, SSL, or CORS).'
+                : `Proxy unreachable: ${err.message || err}`,
+        });
         document.getElementById('vibe-count').innerText = 'OFFLINE';
+        return;
     }
+
+    // Any resolved Response means the browser reached the proxy host.
+    setSignal({
+        proxy: 'up',
+        phase: 'loading',
+        message: 'Proxy online — reading feed…',
+    });
+
+    if (!response.ok) {
+        const hint = response.statusText || `HTTP ${response.status}`;
+        setSignal({
+            phase: 'fault',
+            message: `Proxy answered but feed failed: ${hint}. Check survey id or proxy logs.`,
+        });
+        document.getElementById('vibe-count').innerText = '—';
+        return;
+    }
+
+    let vibes;
+    try {
+        vibes = await response.json();
+    } catch {
+        setSignal({
+            phase: 'fault',
+            message: 'Proxy online — body was not valid JSON.',
+        });
+        document.getElementById('vibe-count').innerText = '—';
+        return;
+    }
+
+    if (!Array.isArray(vibes)) {
+        setSignal({
+            phase: 'fault',
+            message: 'Proxy online — expected a JSON array of responses.',
+        });
+        document.getElementById('vibe-count').innerText = '—';
+        return;
+    }
+
+    try {
+        renderDashboard(vibes);
+    } catch (err) {
+        console.error('Render failed:', err);
+        setSignal({
+            phase: 'fault',
+            message: `Proxy online — display error: ${err.message || 'chart or table failed.'}`,
+        });
+        document.getElementById('vibe-count').innerText = '—';
+        return;
+    }
+
+    const n = vibes.length;
+    setSignal({
+        phase: 'success',
+        message:
+            n === 0
+                ? 'Proxy OK — feed OK — zero responses so far.'
+                : `Proxy OK — feed OK — ${n} response${n === 1 ? '' : 's'} loaded.`,
+    });
 }
 
 function renderDashboard(data) {
-    // 1. Stats Counter
     document.getElementById('vibe-count').innerText = data.length;
 
-    // 2. Map the data for Charts
     const npsValues = data.map(v => parseInt(v.values.QID1 || 0));
     const labels = data.map((_, i) => `Vibe #${i + 1}`);
 
-    // 3. The "Pulse" Line Chart
     const options = {
         chart: { type: 'area', height: 300, sparkline: { enabled: false }, toolbar: { show: false } },
         series: [{ name: 'NPS Score', data: npsValues }],
@@ -81,18 +115,17 @@ function renderDashboard(data) {
         fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.3 } },
         colors: ['#22d3ee'],
         xaxis: { categories: labels, labels: { show: false } },
-        theme: { mode: 'dark' }
+        theme: { mode: 'dark' },
     };
 
     document.querySelector('#nps-chart').innerHTML = '';
     new ApexCharts(document.querySelector('#nps-chart'), options).render();
 
-    // 4. The Drill-Down Table
     const tableData = data.map(v => ({
         nps: v.values.QID1,
         comment: v.values.QID3_TEXT,
         host: v.values.OriginHost || 'Local',
-        date: new Date(v.values.recordedDate).toLocaleDateString()
+        date: new Date(v.values.recordedDate).toLocaleDateString(),
     }));
 
     new Tabulator('#vibe-table', {
