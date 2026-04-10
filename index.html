@@ -203,12 +203,30 @@
         #system-signal[data-summary="all-green"] #signal-message { color: #bbf7d0; text-shadow: 0 0 10px rgba(34, 197, 94, 0.22); }
         #system-signal[data-summary="fault"] #signal-message { color: #fecaca; text-shadow: 0 0 10px rgba(239, 68, 68, 0.22); }
 
-        /* THE GRID: Handles the layout of our widgets */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        /* Full-width NPS trend, then a row of three metric cards */
+        .dashboard-stats-stack {
+            display: flex;
+            flex-direction: column;
             gap: 1.5rem;
             margin-bottom: 2rem;
+            width: 100%;
+        }
+
+        .nps-trend-full-width {
+            width: 100%;
+        }
+
+        .stats-row-triple {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+        }
+
+        @media (max-width: 960px) {
+            .stats-row-triple {
+                grid-template-columns: 1fr;
+            }
         }
 
         .card {
@@ -381,6 +399,11 @@
             }
         }
 
+        .nps-chart-wide {
+            min-height: 280px;
+            width: 100%;
+        }
+
         .mini-chart-wrap {
             min-height: 260px;
             margin-top: 0.25rem;
@@ -433,8 +456,8 @@
             </div>
         </header>
 
-        <div class="stats-grid">
-            <div class="card nps-trend-card">
+        <div class="dashboard-stats-stack">
+            <div class="card nps-trend-card nps-trend-full-width">
                 <h3>Vibe Trend (NPS)</h3>
                 <div class="nps-trend-intro">
                     <figure class="nps-trend-figure" aria-hidden="true">
@@ -456,11 +479,12 @@
                         The height is the <strong>NPS score (0–10)</strong>. A rising line means recent vibes are stronger; dips are stretches where scores softened.
                     </p>
                 </div>
-                <div id="nps-chart">
+                <div id="nps-chart" class="nps-chart-wide">
                     <p style="text-align: center; padding-top: 50px; opacity: 0.5;">Calculating vibes...</p>
                 </div>
             </div>
 
+            <div class="stats-row-triple">
             <div class="card">
                 <h3>Total Vibes Received</h3>
                 <div id="vibe-count" class="metric-value">...</div>
@@ -477,6 +501,7 @@
                 <h3>NPS group mix</h3>
                 <p style="opacity: 0.55; font-size: 0.8rem; margin: -0.25rem 0 0.5rem;">Promoters (9–10), Passives (7–8), Detractors (0–6)</p>
                 <div id="nps-group-bar-chart" class="mini-chart-wrap"></div>
+            </div>
             </div>
         </div>
 

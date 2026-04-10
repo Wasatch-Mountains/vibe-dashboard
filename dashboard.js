@@ -321,7 +321,7 @@ function renderDashboard(data) {
     const labels = chronological.map((_, i) => `Vibe #${i + 1}`);
 
     const options = {
-        chart: { type: 'area', height: 300, sparkline: { enabled: false }, toolbar: { show: false } },
+        chart: { type: 'area', height: 340, sparkline: { enabled: false }, toolbar: { show: false } },
         series: [{ name: 'NPS Score', data: npsValues }],
         stroke: { curve: 'smooth', width: 3 },
         fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.3 } },
