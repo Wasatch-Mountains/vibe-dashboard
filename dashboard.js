@@ -115,6 +115,66 @@ function responseTimestampMs(values) {
     return Number.isNaN(t) ? 0 : t;
 }
 
+const ORIGIN_PIE_COLORS = [
+    '#22d3ee', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb923c', '#60a5fa', '#c084fc', '#2dd4bf', '#f87171',
+];
+
+function aggregateOriginHosts(rows) {
+    const map = {};
+    for (const row of rows) {
+        const vals = row.values || {};
+        let h =
+            vals.OriginHost != null && String(vals.OriginHost).trim() !== ''
+                ? String(vals.OriginHost).trim()
+                : 'Local';
+        if (h.length > 52) h = `${h.slice(0, 49)}…`;
+        map[h] = (map[h] || 0) + 1;
+    }
+    const entries = Object.entries(map).sort((a, b) => b[1] - a[1]);
+    return {
+        labels: entries.map(([k]) => k),
+        series: entries.map(([, v]) => v),
+    };
+}
+
+function aggregateNpsGroupsBar(rows) {
+    let promoter = 0;
+    let passive = 0;
+    let detractor = 0;
+    let unknown = 0;
+    for (const row of rows) {
+        const g = npsGroupLabel(row.values?.QID1);
+        if (g === 'Promoter') promoter += 1;
+        else if (g === 'Passive') passive += 1;
+        else if (g === 'Detractor') detractor += 1;
+        else unknown += 1;
+    }
+    const categories = ['Promoter', 'Passive', 'Detractor'];
+    const counts = [promoter, passive, detractor];
+    const colors = ['#22c55e', '#eab308', '#ef4444'];
+    if (unknown > 0) {
+        categories.push('No score');
+        counts.push(unknown);
+        colors.push('#64748b');
+    }
+    return { categories, counts, colors };
+}
+
+function disposeAuxCharts() {
+    try {
+        if (window.__originPieChart && typeof window.__originPieChart.destroy === 'function') {
+            window.__originPieChart.destroy();
+        }
+    } catch (_) { /* noop */ }
+    try {
+        if (window.__npsGroupBarChart && typeof window.__npsGroupBarChart.destroy === 'function') {
+            window.__npsGroupBarChart.destroy();
+        }
+    } catch (_) { /* noop */ }
+    window.__originPieChart = null;
+    window.__npsGroupBarChart = null;
+}
+
 const LAMPS = { proxy: 'lamp-proxy', feed: 'lamp-feed', display: 'lamp-display' };
 
 const ARIA = {
@@ -251,6 +311,7 @@ async function fetchVibes() {
 
 function renderDashboard(data) {
     document.getElementById('vibe-count').innerText = data.length;
+    disposeAuxCharts();
 
     const chronological = [...data].sort(
         (a, b) => responseTimestampMs(a.values) - responseTimestampMs(b.values)
@@ -271,6 +332,74 @@ function renderDashboard(data) {
 
     document.querySelector('#nps-chart').innerHTML = '';
     new ApexCharts(document.querySelector('#nps-chart'), options).render();
+
+    const originEl = document.getElementById('origin-pie-chart');
+    const npsBarEl = document.getElementById('nps-group-bar-chart');
+    if (originEl && npsBarEl) {
+        if (data.length === 0) {
+            originEl.innerHTML = '<p class="chart-empty">No responses yet.</p>';
+            npsBarEl.innerHTML = '<p class="chart-empty">No responses yet.</p>';
+        } else {
+            originEl.innerHTML = '';
+            const { labels: hostLabels, series: hostSeries } = aggregateOriginHosts(data);
+            const pieOptions = {
+                chart: { type: 'pie', height: 300, toolbar: { show: false } },
+                labels: hostLabels,
+                series: hostSeries,
+                colors: ORIGIN_PIE_COLORS,
+                legend: {
+                    position: 'bottom',
+                    fontSize: '11px',
+                    itemMargin: { horizontal: 6, vertical: 4 },
+                    labels: { colors: '#cbd5e1' },
+                    markers: { strokeWidth: 0 },
+                },
+                dataLabels: {
+                    enabled: hostLabels.length <= 10,
+                    style: { fontSize: '11px', fontWeight: 600, colors: ['#0f172a'] },
+                    dropShadow: { enabled: false },
+                },
+                stroke: { width: 2, colors: ['#0f172a'] },
+                theme: { mode: 'dark' },
+            };
+            window.__originPieChart = new ApexCharts(originEl, pieOptions);
+            window.__originPieChart.render();
+
+            npsBarEl.innerHTML = '';
+            const { categories, counts, colors } = aggregateNpsGroupsBar(data);
+            const barOptions = {
+                chart: { type: 'bar', height: 280, toolbar: { show: false } },
+                series: [{ name: 'Responses', data: counts }],
+                xaxis: {
+                    categories,
+                    labels: { style: { colors: '#94a3b8', fontSize: '12px' } },
+                },
+                yaxis: {
+                    labels: { style: { colors: '#94a3b8' } },
+                    min: 0,
+                    forceNiceScale: true,
+                },
+                plotOptions: {
+                    bar: {
+                        borderRadius: 6,
+                        columnWidth: '58%',
+                        distributed: true,
+                        dataLabels: { position: 'top' },
+                    },
+                },
+                dataLabels: {
+                    enabled: true,
+                    offsetY: -18,
+                    style: { fontSize: '12px', fontWeight: 600, colors: ['#f1f5f9'] },
+                },
+                colors,
+                grid: { borderColor: 'rgba(51,65,85,0.45)', strokeDashArray: 4 },
+                theme: { mode: 'dark' },
+            };
+            window.__npsGroupBarChart = new ApexCharts(npsBarEl, barOptions);
+            window.__npsGroupBarChart.render();
+        }
+    }
 
     const newestFirst = [...data].sort(
         (a, b) => responseTimestampMs(b.values) - responseTimestampMs(a.values)

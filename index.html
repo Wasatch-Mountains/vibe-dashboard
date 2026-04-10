@@ -380,6 +380,19 @@
                 text-align: center;
             }
         }
+
+        .mini-chart-wrap {
+            min-height: 260px;
+            margin-top: 0.25rem;
+        }
+
+        .chart-empty {
+            margin: 0;
+            padding: 2.5rem 1rem;
+            text-align: center;
+            font-size: 0.85rem;
+            opacity: 0.5;
+        }
     </style>
 </head>
 <body>
@@ -452,6 +465,18 @@
                 <h3>Total Vibes Received</h3>
                 <div id="vibe-count" class="metric-value">...</div>
                 <p style="opacity: 0.6; font-size: 0.8rem;">Cumulative project responses</p>
+            </div>
+
+            <div class="card">
+                <h3>Origin host</h3>
+                <p style="opacity: 0.55; font-size: 0.8rem; margin: -0.25rem 0 0.5rem;">Where each vibe was submitted from</p>
+                <div id="origin-pie-chart" class="mini-chart-wrap"></div>
+            </div>
+
+            <div class="card">
+                <h3>NPS group mix</h3>
+                <p style="opacity: 0.55; font-size: 0.8rem; margin: -0.25rem 0 0.5rem;">Promoters (9–10), Passives (7–8), Detractors (0–6)</p>
+                <div id="nps-group-bar-chart" class="mini-chart-wrap"></div>
             </div>
         </div>
 
